@@ -1,7 +1,7 @@
 const { Client, IntentsBitField, Partials  } = require('discord.js');
 const CommandHandler = require('./utilits/CommandHandler'); 
 const Database = require('./data/Database'); // Assuming that your 'Database' is in a file named 'Database.js' located in the same directory as main file
-
+const { checkMutes } = require('./utilits/muteUserForDuration');
 require('dotenv').config(); // to load .env variables
 
 const client = new Client({
@@ -29,4 +29,10 @@ new CommandHandler(client).registerCommands();
 Database.init();
 
 // start the bot
-client.login(process.env.TOKEN);
+client.login(process.env.TOKEN).then(() => {
+    console.log('Bot is ready');
+    checkMutes(client);
+}).catch((err) => {
+    console.error(err);
+});
+

@@ -1,15 +1,6 @@
-const database = require('../data/Database');
 const { ApplicationCommandOptionType } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
-
-
-function setExpirationDate(hoursToExpire) {
-    const toMilliseconds = hoursToExpire * 60 * 60 * 1000;
-    const currentDate = new Date().getTime();
-    const expirationDate = currentDate + toMilliseconds;
-    return expirationDate;
-}
-
+const { muteUserForDuration } = require('../utilits/muteUserForDuration');
 
 module.exports = {
     name: 'mute',
@@ -25,42 +16,34 @@ module.exports = {
         description: 'Reason for the mute.',
         required: false,
     }, {
-        name: 'expiration-hours',
+        name: 'expiration-minutes',
         type: ApplicationCommandOptionType.Integer,
-        description: 'Number of hours until the mute is lifted.',
+        description: 'Number of minutes until the mute is lifted.',
         required: false,
     }],
-    execute(interaction) {
+    async execute(interaction) {
         const user = interaction.options.getUser('user');
+        const member = interaction.guild.members.cache.get(user.id);
         const reason = interaction.options.getString('reason') || 'Not specified';
         const issuerUsername = interaction.user.username;
-        const expirationHours = interaction.options.getInteger('expiration-hours') || 1; // Set a default value of 1 hours
-        const expirationDate = setExpirationDate(expirationHours);
+        const expirationMinutes = interaction.options.getInteger('expiration-minutes') || 60; // Set a default value of 1 minutes
 
-        const muteOptions = { hours: expirationHours, reason };
+        muteUserForDuration(member, expirationMinutes, false, reason).then((muted) => {
+            if (muted) {
+                const embed = new EmbedBuilder()
+                .setColor('#FF0000')
+                .setTitle('User Muted')
+                .setDescription(`User ${user.username} has been muted.`)
+                .addFields({ name: 'Reason', value: `${reason}\n`, inline: true},
+                            { name: 'Duration', value: `${expirationMinutes} Minutes\n`})
+                .setTimestamp()
+                .setFooter({ text: `Muted by ${issuerUsername}` });
+                if (user.avatarURL()) {
+                    embed.setThumbnail(user.avatarURL());
+                }
 
-        interaction.guild.members.mute(user.id, muteOptions).then(() => {
-            interaction.reply(`User ${user.id} has been successfully muted with the reason: "${reason}" and will be unmuted after ${expirationHours} hours.`);
-
-            const embed = new EmbedBuilder()
-            .setColor('#FF0000')
-            .setTitle('User Muted')
-            .setDescription(`User ${user.id} has been muted with the reason: "${reason}" and will be unmuted after ${expirationHours} hours.`)
-            .setTimestamp()
-            .setFooter(`Muted by ${issuerUsername}`);
-
-            // add thumbnail of the user profile picture
-            if (user.avatarURL()) {
-                embed.setThumbnail(user.avatarURL());
-            }
-
-            interaction.guild.channels.cache.get('CHANNEL_ID').send({ embeds: [embed] });
-        });
-
-        database.db.run(`INSERT INTO mutes(userId, reason, endTime) VALUES(?, ?, ?)`, [user.id, reason, expirationDate], function(err) {
-            if (err) {
-                return console.log(err.message);
-            }
+                interaction.reply({ embeds: [embed] });
+            }            
         });
     }
 }

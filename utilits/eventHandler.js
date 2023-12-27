@@ -23,7 +23,6 @@ module.exports = async (client) => {
     }
 
     client.on(Events.InteractionCreate, async interaction => {
-        console.log(`${interaction.user.tag} in #${interaction.channel.name} triggered an interaction.`);
         if (!interaction.isCommand()) return;
         const command = client.commandHandler.commands.get(interaction.commandName);
         if (!command) return;
